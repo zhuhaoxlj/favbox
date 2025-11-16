@@ -43,6 +43,7 @@
       />
       <div class="my-0 flex w-full justify-between">
         <AppButton
+          ref="saveButtonRef"
           class="w-full"
         >
           Save bookmark
@@ -52,7 +53,7 @@
   </form>
 </template>
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, nextTick } from 'vue';
 
 import Treeselect from '@zanmato/vue3-treeselect';
 import AppTagInput from '@/components/app/AppTagInput.vue';
@@ -92,6 +93,7 @@ watch(() => props.title, (newTitle) => {
 });
 const selectedFolder = ref(1);
 const selectedTags = ref([]);
+const saveButtonRef = ref(null);
 
 const onBeforeClearAll = () => {
   selectedFolder.value = 1;
@@ -103,4 +105,12 @@ const submit = () => {
   const data = { title: tagHelper.toString(bookmarkTitle.value, selectedTags.value), url: props.url, parentId: String(selectedFolder.value) };
   emit('submit', data);
 };
+
+onMounted(() => {
+  nextTick(() => {
+    if (saveButtonRef.value && saveButtonRef.value.$el) {
+      saveButtonRef.value.$el.focus();
+    }
+  });
+});
 </script>
