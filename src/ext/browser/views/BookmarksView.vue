@@ -393,6 +393,15 @@ onMounted(async () => {
     bookmarksTotal.value = totalResult;
     await loadBookmarks();
     searchRef.value.focus();
+
+    // 监听同步完成消息
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'BOOKMARKS_SYNCED') {
+        console.log('[BookmarksView] Received sync notification, reloading page...');
+        // 最简单的方法：重新加载页面
+        window.location.reload();
+      }
+    });
   } catch (error) {
     console.error('Error during component mount:', error);
     notify({ group: 'error', text: 'Error initializing bookmarks view.' }, NOTIFICATION_DURATION);
