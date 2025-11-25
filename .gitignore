@@ -26,3 +26,15 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+# AI/Tool configuration directories
+.claude/
+.serena/
+.spec-workflow/
+
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.db
+backend/*.pyc
