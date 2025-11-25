@@ -37,6 +37,12 @@ const routes = [
     meta: { page: 4 },
   },
   {
+    path: '/sync-settings',
+    name: 'SyncSettingsView',
+    component: () => import('./views/SyncSettingsView.vue'),
+    meta: { page: 5 },
+  },
+  {
     path: '/',
     redirect: '/bookmarks',
   },
