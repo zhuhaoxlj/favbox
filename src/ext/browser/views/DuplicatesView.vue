@@ -86,7 +86,7 @@
 import { ref, onMounted, useTemplateRef } from 'vue';
 import { notify } from 'notiwind';
 import BookmarkStorage from '@/storage/bookmark';
-import backendClient from '@/services/backend';
+import { useBookmarkActions } from '@/composables/useBookmarkActions';
 import AppInfiniteScroll from '@/components/app/AppInfiniteScroll.vue';
 import AppSpinner from '@/components/app/AppSpinner.vue';
 import DuplicateCard from '@/ext/browser/components/card/DuplicateCard.vue';
@@ -95,6 +95,7 @@ import NumberFlow from '@number-flow/vue';
 
 const NOTIFICATION_DURATION = import.meta.env.VITE_NOTIFICATION_DURATION;
 const bookmarkStorage = new BookmarkStorage();
+const { deleteBookmark } = useBookmarkActions();
 
 const loading = ref(true);
 const bookmarks = ref([]);
@@ -126,32 +127,24 @@ const onDelete = async (bookmark) => {
   if (await confirmationRef.value.request() === false) {
     return;
   }
+
   try {
-    await browser.bookmarks.remove(String(bookmark.id));
+    // 使用统一的删除方法
+    await deleteBookmark(bookmark);
 
-    // Sync deletion to backend if configured and authenticated
-    if (backendClient.isConfigured() && backendClient.isAuthenticated()) {
-      try {
-        await backendClient.deleteBookmark(bookmark.id);
-      } catch (error) {
-        console.error('Error syncing deletion to backend:', error);
-        // Don't show error to user - local deletion succeeded
-      }
-    }
-
-    // Mutate bookmarks manually for smooth animation
+    // 手动变更书签数据以实现平滑动画
     const groupIndex = bookmarks.value.findIndex((group) => group.bookmarks.some((b) => b.id === bookmark.id));
     if (groupIndex !== -1) {
       const group = bookmarks.value[groupIndex];
       const bookmarkIndex = group.bookmarks.findIndex((b) => b.id === bookmark.id);
       if (bookmarkIndex !== -1) {
         group.bookmarks.splice(bookmarkIndex, 1);
-        // If the group has 0 or 1 bookmark left — remove the entire group
+        // 如果组中只剩下0或1个书签，删除整个组
         if (group.bookmarks.length <= 1) {
           bookmarks.value.splice(groupIndex, 1);
           removedGroupsCount.value += 1;
           total.value -= 1;
-          // After deletion — if there are still duplicates in the database, load one new group
+          // 删除后如果数据库中仍有重复项，加载一个新组
           if (bookmarks.value.length + removedGroupsCount.value < total.value) {
             const result = await bookmarkStorage.getDuplicatesGrouped(bookmarks.value.length + removedGroupsCount.value, 1);
             if (result.groups.length > 0) {
@@ -161,6 +154,7 @@ const onDelete = async (bookmark) => {
         }
       }
     }
+
     notify({ group: 'default', text: 'Bookmark deleted. This group no longer contains duplicates.' }, NOTIFICATION_DURATION);
   } catch (error) {
     console.error('Error deleting bookmark:', error);

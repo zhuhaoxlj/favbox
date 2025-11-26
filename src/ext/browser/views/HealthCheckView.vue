@@ -82,7 +82,7 @@ import { ref, onMounted, onUnmounted, useTemplateRef } from 'vue';
 import NumberFlow from '@number-flow/vue';
 import { notify } from 'notiwind';
 import BookmarkStorage from '@/storage/bookmark';
-import backendClient from '@/services/backend';
+import { useBookmarkActions } from '@/composables/useBookmarkActions';
 import AppConfirmation from '@/components/app/AppConfirmation.vue';
 import AppInfiniteScroll from '@/components/app/AppInfiniteScroll.vue';
 import HealthCheckCard from '@/ext/browser/components/card/HealthCheckCard.vue';
@@ -92,6 +92,7 @@ import AppProgress from '@/components/app/AppProgress.vue';
 import AppSpinner from '@/components/app/AppSpinner.vue';
 
 const bookmarkStorage = new BookmarkStorage();
+const { deleteBookmark } = useBookmarkActions();
 const bookmarks = ref([]);
 const confirmationRef = useTemplateRef('confirmation');
 const total = ref(0);
@@ -164,27 +165,20 @@ const onDelete = async (bookmark) => {
   if (await confirmationRef.value.request() === false) {
     return;
   }
+
   try {
-    await browser.bookmarks.remove(String(bookmark.id));
+    // 使用统一的删除方法
+    await deleteBookmark(bookmark);
 
-    // Sync deletion to backend if configured and authenticated
-    if (backendClient.isConfigured() && backendClient.isAuthenticated()) {
-      try {
-        await backendClient.deleteBookmark(bookmark.id);
-      } catch (error) {
-        console.error('Error syncing deletion to backend:', error);
-        // Don't show error to user - local deletion succeeded
-      }
-    }
-
+    // 从列表中过滤已删除的书签
     bookmarks.value = bookmarks.value.filter((b) => b.id !== bookmark.id);
     total.value = await bookmarkStorage.getTotalByHttpStatus(httpStatuses);
-    notify({ group: 'default', text: 'Bookmark successfully removed!' }, import.meta.env.VITE_NOTIFICATION_DURATION);
   } catch (e) {
     console.error(e);
     notify({ group: 'error', text: 'Failed to remove bookmark. Please try again.' }, import.meta.env.VITE_NOTIFICATION_DURATION);
   }
 
+  // 静默加载更多书签补充列表
   try {
     if (bookmarks.value.length < BOOKMARKS_LIMIT) {
       const more = await bookmarkStorage.getBookmarksByHttpStatusCode(httpStatuses, bookmarks.value.length, 1);

@@ -133,7 +133,7 @@ import AppSpinner from '@/components/app/AppSpinner.vue';
 import AttributeList from '@/ext/browser/components/AttributeList.vue';
 import BookmarkStorage from '@/storage/bookmark';
 import AttributeStorage from '@/storage/attribute';
-import backendClient from '@/services/backend';
+import { useBookmarkActions } from '@/composables/useBookmarkActions';
 
 import bookmarkHelper from '@/helpers/bookmark';
 import debounce from '@/helpers/debounce';
@@ -153,6 +153,7 @@ const ATTRIBUTES_LIMIT = import.meta.env.VITE_ATTRIBUTES_PAGINATION_LIMIT;
 const NOTIFICATION_DURATION = import.meta.env.VITE_NOTIFICATION_DURATION;
 const bookmarkStorage = new BookmarkStorage();
 const attributeStorage = new AttributeStorage();
+const { deleteBookmark } = useBookmarkActions();
 
 const route = useRoute();
 const router = useRouter();
@@ -258,29 +259,19 @@ const handleRemove = async (bookmark) => {
   if (await deleteConfirmationRef.value.request() === false) {
     return;
   }
+
   try {
-    const id = bookmark.id.toString();
-    await browser.bookmarks.remove(id);
+    // 使用统一的删除方法
+    const deletedId = await deleteBookmark(bookmark);
 
-    // Sync deletion to backend if configured and authenticated
-    if (backendClient.isConfigured() && backendClient.isAuthenticated()) {
-      try {
-        await backendClient.deleteBookmark(id);
-      } catch (error) {
-        console.error('Error syncing deletion to backend:', error);
-        // Don't show error to user - local deletion succeeded
-      }
-    }
-
-    bookmarksList.value = bookmarksList.value.filter((item) => item.id.toString() !== id);
-    notify({ group: 'default', text: 'Bookmark successfully removed!' }, NOTIFICATION_DURATION);
-    console.log(`Bookmark ${id} successfully removed`);
+    // 从列表中移除已删除的书签
+    bookmarksList.value = bookmarksList.value.filter((item) => item.id.toString() !== deletedId);
   } catch (error) {
     console.error('Error removing bookmark:', error);
     notify({ group: 'error', text: 'Failed to remove bookmark. Please try again.' }, NOTIFICATION_DURATION);
   }
 
-  // Silently load more bookmarks if needed, without showing spinner
+  // 静默加载更多书签（如果需要），不显示加载动画
   try {
     if (bookmarksList.value.length < BOOKMARKS_LIMIT) {
       const more = await bookmarkStorage.search(bookmarksQuery.value, bookmarksList.value.length, 1, bookmarksSort.value);
