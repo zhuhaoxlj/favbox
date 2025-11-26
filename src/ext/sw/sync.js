@@ -28,7 +28,9 @@ const sync = async () => {
   console.log('Folders map:', foldersMap);
   const bookmarksIterator = await bookmarkHelper.iterateBookmarks();
   let processed = 0;
-  const maxConcurrent = 50;
+  // 并发控制：降低并发数从 50 到 10，避免服务器限流和浏览器冻结
+  const maxConcurrent = 10;
+  const requestDelay = 100; // 请求间隔（毫秒）
   const activePromises = new Set();
   const allExistingIds = new Set(await bookmarkStorage.getAllIds());
 
@@ -74,6 +76,9 @@ const sync = async () => {
       }
     }
     addToActivePromises(bookmark);
+
+    // 添加请求间隔，避免过度占用资源
+    await new Promise((resolve) => setTimeout(resolve, requestDelay));
 
     if (processed % 100 === 0) {
       try {
