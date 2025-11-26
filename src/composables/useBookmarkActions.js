@@ -10,12 +10,14 @@
 
 import { notify } from 'notiwind';
 import BookmarkStorage from '@/storage/bookmark';
+import AttributeStorage from '@/storage/attribute';
 import { backendClient } from '@/services/backend';
 import browser from 'webextension-polyfill';
 
 const NOTIFICATION_DURATION = import.meta.env.VITE_NOTIFICATION_DURATION;
 const UNDO_DELAY = 10000; // 10秒撤销时间
 const bookmarkStorage = new BookmarkStorage();
+const attributeStorage = new AttributeStorage();
 
 // 存储待删除的书签（支持撤销）
 const pendingDeletions = new Map();
@@ -55,9 +57,9 @@ export function useBookmarkActions() {
   /**
    * 撤销删除
    * @param {string} id - 书签ID
-   * @returns {object|null} 恢复的书签对象，如果不存在返回null
+   * @returns {Promise<object|null>} 恢复的书签对象，如果不存在返回null
    */
-  const undoDelete = (id) => {
+  const undoDelete = async (id) => {
     if (pendingDeletions.has(id)) {
       const { bookmark, timeoutId } = pendingDeletions.get(id);
 
@@ -68,6 +70,18 @@ export function useBookmarkActions() {
 
       // 从待删除列表移除
       pendingDeletions.delete(id);
+
+      // 恢复属性计数
+      try {
+        await attributeStorage.create(bookmark);
+        // 通知UI刷新属性列表并恢复书签
+        browser.runtime.sendMessage({
+          action: 'restore-bookmark',
+          bookmark,
+        });
+      } catch (error) {
+        console.error('Error restoring attributes:', error);
+      }
 
       // 显示恢复通知
       notify(

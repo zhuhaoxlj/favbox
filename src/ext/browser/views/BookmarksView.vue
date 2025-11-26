@@ -266,6 +266,10 @@ const handleRemove = async (bookmark) => {
 
     // 从列表中移除已删除的书签
     bookmarksList.value = bookmarksList.value.filter((item) => item.id.toString() !== deletedId);
+
+    // 立即更新属性计数并刷新属性列表
+    await attributeStorage.remove(bookmark);
+    await loadAttributes({ skip: 0, append: false });
   } catch (error) {
     console.error('Error removing bookmark:', error);
     notify({ group: 'error', text: 'Failed to remove bookmark. Please try again.' }, NOTIFICATION_DURATION);
@@ -346,6 +350,17 @@ const messageListener = async (message) => {
       console.warn('refresing..');
       await sync();
     }
+  }
+
+  // 处理撤销删除后的书签恢复
+  if (message.action === 'restore-bookmark') {
+    console.log('[BookmarksView] Restoring bookmark after undo...', message.bookmark);
+
+    // 重新加载书签列表，这样会按照正确的排序显示所有书签
+    await loadBookmarks({ skip: 0, append: false });
+
+    // 刷新属性列表
+    await loadAttributes({ skip: 0, append: false });
   }
 
   if (message.type === 'BOOKMARKS_SYNCED') {
