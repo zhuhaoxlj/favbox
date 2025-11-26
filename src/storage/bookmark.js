@@ -1,6 +1,44 @@
+/**
+ * @typedef {object} Bookmark
+ * @property {string|number} id - 书签唯一标识符
+ * @property {string} browserId - 浏览器原生书签ID
+ * @property {string} url - 书签URL
+ * @property {string} title - 书签标题
+ * @property {string} [description] - 页面描述
+ * @property {string[]} tags - 标签列表
+ * @property {string[]} keywords - 关键词列表
+ * @property {string} domain - 域名
+ * @property {string} [favicon] - 网站图标URL
+ * @property {string} [image] - 预览图URL
+ * @property {string} [notes] - 用户备注
+ * @property {string} folderName - 所属文件夹名称
+ * @property {string} folderId - 所属文件夹ID
+ * @property {number} pinned - 是否置顶 (0或1)
+ * @property {number} [httpStatus] - HTTP状态码
+ * @property {number} dateAdded - 添加时间戳
+ * @property {string} [createdAt] - 创建时间ISO字符串
+ * @property {string} [updatedAt] - 更新时间ISO字符串
+ * @property {boolean} deleted - 是否已删除
+ */
+
+/**
+ * @typedef {object} SearchQuery
+ * @property {string} key - 查询键（folder/tag/domain/keyword/term/dateAdded）
+ * @property {string|string[]} value - 查询值
+ */
+
+/**
+ * BookmarkStorage - 书签存储管理类
+ * 提供书签的CRUD操作和高级查询功能
+ */
 import useConnection from './idb/connection';
 
 export default class BookmarkStorage {
+  /**
+   * 批量创建书签
+   * @param {Bookmark[]} data - 书签数组
+   * @returns {Promise<number>} 成功插入的记录数
+   */
   async createMany(data) {
     const connection = await useConnection();
     const result = await connection.insert({
@@ -13,6 +51,12 @@ export default class BookmarkStorage {
     return result;
   }
 
+  /**
+   * 查询指定ID之后的书签（用于分页）
+   * @param {string|number} id - 起始ID
+   * @param {number} limit - 返回数量限制
+   * @returns {Promise<Bookmark[]>} 书签列表
+   */
   async selectAfterId(id, limit) {
     const connection = await useConnection();
     const query = {
@@ -24,6 +68,15 @@ export default class BookmarkStorage {
     return connection.select(query);
   }
 
+  /**
+   * 高级搜索书签
+   * 支持按文件夹、标签、域名、关键词、搜索词、日期范围查询
+   * @param {SearchQuery[]} query - 查询条件数组
+   * @param {number} [skip] - 跳过记录数
+   * @param {number} [limit] - 返回数量限制
+   * @param {string} [sortDirection] - 排序方向 ('asc' | 'desc')
+   * @returns {Promise<Bookmark[]>} 书签列表
+   */
   async search(query, skip = 0, limit = 50, sortDirection = 'desc') {
     const connection = await useConnection();
     const queryParams = {};
@@ -88,6 +141,10 @@ export default class BookmarkStorage {
     });
   }
 
+  /**
+   * 获取书签总数
+   * @returns {Promise<number>} 书签总数
+   */
   async total() {
     const connection = await useConnection();
     return connection.count({
@@ -95,6 +152,11 @@ export default class BookmarkStorage {
     });
   }
 
+  /**
+   * 创建单个书签
+   * @param {Bookmark} entity - 书签对象
+   * @returns {Promise<number>} 成功插入的记录数
+   */
   async create(entity) {
     const connection = await useConnection();
     return connection.insert({
@@ -103,6 +165,12 @@ export default class BookmarkStorage {
     });
   }
 
+  /**
+   * 更新书签HTTP状态码
+   * @param {string|number} id - 书签ID
+   * @param {number} status - HTTP状态码
+   * @returns {Promise<number>} 更新的记录数
+   */
   async updateHttpStatusById(id, status) {
     const connection = await useConnection();
     return connection.update({
@@ -117,6 +185,10 @@ export default class BookmarkStorage {
     });
   }
 
+  /**
+   * 将所有书签HTTP状态设置为200
+   * @returns {Promise<number>} 更新的记录数
+   */
   async setOK() {
     const connection = await useConnection();
     return connection.update({
@@ -125,6 +197,13 @@ export default class BookmarkStorage {
     });
   }
 
+  /**
+   * 获取置顶的书签
+   * @param {number} [skip] - 跳过记录数
+   * @param {number} [limit] - 返回数量限制
+   * @param {string} [term] - 搜索词
+   * @returns {Promise<Bookmark[]>} 置顶书签列表
+   */
   async getPinnedBookmarks(skip = 0, limit = 50, term = '') {
     const connection = await useConnection();
     const whereConditions = [{ pinned: 1 }];
@@ -170,6 +249,12 @@ export default class BookmarkStorage {
     });
   }
 
+  /**
+   * 更新书签
+   * @param {string|number} id - 书签ID
+   * @param {Partial<Bookmark>} data - 要更新的字段
+   * @returns {Promise<number>} 更新的记录数
+   */
   async update(id, data) {
     const connection = await useConnection();
     return connection.update({
@@ -181,6 +266,11 @@ export default class BookmarkStorage {
     });
   }
 
+  /**
+   * 批量删除书签
+   * @param {Array<string|number>} ids - 书签ID数组
+   * @returns {Promise<number>} 删除的记录数
+   */
   async removeByIds(ids) {
     const connection = await useConnection();
     const result = await connection.remove({
@@ -194,6 +284,11 @@ export default class BookmarkStorage {
     return result;
   }
 
+  /**
+   * 删除单个书签
+   * @param {string|number} id - 书签ID
+   * @returns {Promise<number>} 删除的记录数
+   */
   async removeById(id) {
     const connection = await useConnection();
     return connection.remove({
@@ -253,6 +348,11 @@ export default class BookmarkStorage {
     });
   }
 
+  /**
+   * 根据ID获取书签
+   * @param {string|number} id - 书签ID
+   * @returns {Promise<Bookmark|null>} 书签对象，不存在时返回null
+   */
   async getById(id) {
     const connection = await useConnection();
     const response = await connection.select({
@@ -378,6 +478,12 @@ export default class BookmarkStorage {
     return response.map((i) => i.id);
   }
 
+  /**
+   * 获取重复书签分组
+   * @param {number} [skip] - 跳过分组数
+   * @param {number} [limit] - 返回分组数限制
+   * @returns {Promise<{groups: Array<{url: string, bookmarks: Bookmark[], count: number, firstAdded: Bookmark, lastAdded: Bookmark}>, total: number, hasMore: boolean}>} 重复书签分组结果
+   */
   async getDuplicatesGrouped(skip = 0, limit = 50) {
     const connection = await useConnection();
 

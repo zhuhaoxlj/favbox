@@ -3,6 +3,32 @@
  * Handles communication with the Python backend service
  */
 
+/**
+ * @typedef {object} UserInfo
+ * @property {number} id - 用户ID
+ * @property {string} username - 用户名
+ * @property {string} [email] - 用户邮箱
+ * @property {string} [avatar] - 头像URL
+ */
+
+/**
+ * @typedef {object} SyncResult
+ * @property {Array} bookmarks - 同步的书签列表
+ * @property {number} total - 总数
+ * @property {string} timestamp - 同步时间戳
+ */
+
+/**
+ * @typedef {object} BackendBookmark
+ * @property {string} browser_id - 浏览器书签ID
+ * @property {string} url - URL地址
+ * @property {string} title - 标题
+ * @property {string[]} tags - 标签列表
+ * @property {string} folder_name - 文件夹名称
+ * @property {number} pinned - 是否置顶
+ * @property {number} date_added - 添加时间戳
+ */
+
 const STORAGE_KEYS = {
   SERVER_URL: 'favbox_server_url',
   AUTH_TOKEN: 'favbox_auth_token',
