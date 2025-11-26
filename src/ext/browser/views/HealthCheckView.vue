@@ -82,6 +82,7 @@ import { ref, onMounted, onUnmounted, useTemplateRef } from 'vue';
 import NumberFlow from '@number-flow/vue';
 import { notify } from 'notiwind';
 import BookmarkStorage from '@/storage/bookmark';
+import backendClient from '@/services/backend';
 import AppConfirmation from '@/components/app/AppConfirmation.vue';
 import AppInfiniteScroll from '@/components/app/AppInfiniteScroll.vue';
 import HealthCheckCard from '@/ext/browser/components/card/HealthCheckCard.vue';
@@ -165,6 +166,17 @@ const onDelete = async (bookmark) => {
   }
   try {
     await browser.bookmarks.remove(String(bookmark.id));
+
+    // Sync deletion to backend if configured and authenticated
+    if (backendClient.isConfigured() && backendClient.isAuthenticated()) {
+      try {
+        await backendClient.deleteBookmark(bookmark.id);
+      } catch (error) {
+        console.error('Error syncing deletion to backend:', error);
+        // Don't show error to user - local deletion succeeded
+      }
+    }
+
     bookmarks.value = bookmarks.value.filter((b) => b.id !== bookmark.id);
     total.value = await bookmarkStorage.getTotalByHttpStatus(httpStatuses);
     notify({ group: 'default', text: 'Bookmark successfully removed!' }, import.meta.env.VITE_NOTIFICATION_DURATION);

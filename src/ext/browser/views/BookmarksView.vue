@@ -123,7 +123,7 @@
 
 <script setup>
 import {
-  reactive, ref, onMounted, computed, useTemplateRef, watch,
+  reactive, ref, onMounted, onUnmounted, computed, useTemplateRef, watch,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { notify } from 'notiwind';
@@ -133,6 +133,7 @@ import AppSpinner from '@/components/app/AppSpinner.vue';
 import AttributeList from '@/ext/browser/components/AttributeList.vue';
 import BookmarkStorage from '@/storage/bookmark';
 import AttributeStorage from '@/storage/attribute';
+import backendClient from '@/services/backend';
 
 import bookmarkHelper from '@/helpers/bookmark';
 import debounce from '@/helpers/debounce';
@@ -260,6 +261,17 @@ const handleRemove = async (bookmark) => {
   try {
     const id = bookmark.id.toString();
     await browser.bookmarks.remove(id);
+
+    // Sync deletion to backend if configured and authenticated
+    if (backendClient.isConfigured() && backendClient.isAuthenticated()) {
+      try {
+        await backendClient.deleteBookmark(id);
+      } catch (error) {
+        console.error('Error syncing deletion to backend:', error);
+        // Don't show error to user - local deletion succeeded
+      }
+    }
+
     bookmarksList.value = bookmarksList.value.filter((item) => item.id.toString() !== id);
     notify({ group: 'default', text: 'Bookmark successfully removed!' }, NOTIFICATION_DURATION);
     console.log(`Bookmark ${id} successfully removed`);
@@ -324,7 +336,8 @@ const handleSubmit = async (data) => {
   }
 };
 
-browser.runtime.onMessage.addListener(async (message) => {
+// 定义消息监听器（将在onMounted中注册）
+const messageListener = async (message) => {
   if (message.action === 'refresh') {
     console.warn('checking tab');
     const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -343,7 +356,13 @@ browser.runtime.onMessage.addListener(async (message) => {
       await sync();
     }
   }
-});
+
+  if (message.type === 'BOOKMARKS_SYNCED') {
+    console.log('[BookmarksView] Received sync notification, refreshing data...');
+    // 使用sync()方法刷新数据，而不是重载页面
+    await sync();
+  }
+};
 
 watch(
   [bookmarksQuery, bookmarksSort],
@@ -394,19 +413,18 @@ onMounted(async () => {
     await loadBookmarks();
     searchRef.value.focus();
 
-    // 监听同步完成消息
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.type === 'BOOKMARKS_SYNCED') {
-        console.log('[BookmarksView] Received sync notification, reloading page...');
-        // 最简单的方法：重新加载页面
-        window.location.reload();
-      }
-    });
+    // 注册消息监听器
+    browser.runtime.onMessage.addListener(messageListener);
   } catch (error) {
     console.error('Error during component mount:', error);
     notify({ group: 'error', text: 'Error initializing bookmarks view.' }, NOTIFICATION_DURATION);
   } finally {
     loading.value = false;
   }
+});
+
+// 组件卸载时移除监听器，防止内存泄漏
+onUnmounted(() => {
+  browser.runtime.onMessage.removeListener(messageListener);
 });
 </script>

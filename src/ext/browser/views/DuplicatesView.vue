@@ -86,6 +86,7 @@
 import { ref, onMounted, useTemplateRef } from 'vue';
 import { notify } from 'notiwind';
 import BookmarkStorage from '@/storage/bookmark';
+import backendClient from '@/services/backend';
 import AppInfiniteScroll from '@/components/app/AppInfiniteScroll.vue';
 import AppSpinner from '@/components/app/AppSpinner.vue';
 import DuplicateCard from '@/ext/browser/components/card/DuplicateCard.vue';
@@ -127,6 +128,17 @@ const onDelete = async (bookmark) => {
   }
   try {
     await browser.bookmarks.remove(String(bookmark.id));
+
+    // Sync deletion to backend if configured and authenticated
+    if (backendClient.isConfigured() && backendClient.isAuthenticated()) {
+      try {
+        await backendClient.deleteBookmark(bookmark.id);
+      } catch (error) {
+        console.error('Error syncing deletion to backend:', error);
+        // Don't show error to user - local deletion succeeded
+      }
+    }
+
     // Mutate bookmarks manually for smooth animation
     const groupIndex = bookmarks.value.findIndex((group) => group.bookmarks.some((b) => b.id === bookmark.id));
     if (groupIndex !== -1) {
