@@ -20,7 +20,7 @@
               type="text"
               placeholder="http://localhost:8000"
               class="flex-1 rounded-md border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
             <button
               :disabled="!serverUrl || testing"
               class="px-4 py-2 bg-gray-100 dark:bg-neutral-800 text-black dark:text-white rounded-md hover:bg-gray-200 dark:hover:bg-neutral-700 disabled:opacity-50"
@@ -81,7 +81,7 @@
               v-model="username"
               type="text"
               class="w-full rounded-md border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
           </div>
           <div v-if="authMode === 'register'">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -91,7 +91,7 @@
               v-model="email"
               type="email"
               class="w-full rounded-md border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -101,7 +101,7 @@
               v-model="password"
               type="password"
               class="w-full rounded-md border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
           </div>
           <p
             v-if="authError"
@@ -120,7 +120,10 @@
       </div>
 
       <!-- Logged in -->
-      <div v-else class="space-y-4">
+      <div
+        v-else
+        class="space-y-4"
+      >
         <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
           <div>
             <p class="text-sm font-medium text-green-800 dark:text-green-400">
@@ -252,7 +255,9 @@ const email = ref('');
 const password = ref('');
 const authLoading = ref(false);
 const authError = ref('');
-const userInfo = ref(null);
+
+// 强制刷新计数器，用于触发响应式更新
+const refreshCounter = ref(0);
 
 const syncing = ref(false);
 const syncResult = ref(null);
@@ -260,7 +265,23 @@ const lastSyncTime = ref(null);
 
 const analytics = ref(null);
 
-const isAuthenticated = computed(() => backendClient.isAuthenticated());
+// 从 backendClient 获取登录状态和用户信息
+const isAuthenticated = computed(() => {
+  // 添加 refreshCounter 作为依赖，确保响应式更新
+  refreshCounter.value; // eslint-disable-line no-unused-expressions
+  return backendClient.isAuthenticated();
+});
+
+const userInfo = computed(() => {
+  // 添加 refreshCounter 作为依赖，确保响应式更新
+  refreshCounter.value; // eslint-disable-line no-unused-expressions
+  return backendClient.getUserInfo();
+});
+
+// 强制刷新函数
+const forceRefresh = () => {
+  refreshCounter.value++;
+};
 
 const testConnection = async () => {
   testing.value = true;
@@ -287,6 +308,14 @@ const saveServerUrl = async () => {
   connectionMessage.value = 'Server URL saved!';
 };
 
+const loadAnalytics = async () => {
+  try {
+    analytics.value = await backendClient.getAnalyticsOverview();
+  } catch (e) {
+    console.error('Failed to load analytics:', e);
+  }
+};
+
 const handleAuth = async () => {
   authLoading.value = true;
   authError.value = '';
@@ -295,11 +324,17 @@ const handleAuth = async () => {
       await backendClient.register(username.value, email.value, password.value);
     }
     await backendClient.login(username.value, password.value);
-    userInfo.value = await backendClient.getMe();
+
+    // 清空输入框
     username.value = '';
     email.value = '';
     password.value = '';
-    loadAnalytics();
+
+    // 强制刷新 UI
+    forceRefresh();
+
+    // 加载分析数据
+    await loadAnalytics();
   } catch (e) {
     authError.value = e.message;
   } finally {
@@ -309,8 +344,41 @@ const handleAuth = async () => {
 
 const handleLogout = async () => {
   await backendClient.logout();
-  userInfo.value = null;
   analytics.value = null;
+  // 强制刷新 UI
+  forceRefresh();
+};
+
+/**
+ * 分批获取所有书签，避免一次性加载导致内存问题
+ * @param {Function} onProgress - 进度回调函数
+ * @returns {Promise<Array>} 所有书签数组
+ */
+const getAllBookmarks = async (onProgress) => {
+  const limit = 1000; // 每批1000条
+  let skip = 0;
+  const allBookmarks = [];
+
+  while (true) {
+    const batch = await bookmarkStorage.search([], skip, limit, 'desc');
+
+    // 检查是否获取到数据
+    if (!batch || batch.length === 0) break;
+
+    allBookmarks.push(...batch);
+
+    // 报告进度
+    if (onProgress) {
+      onProgress(allBookmarks.length);
+    }
+
+    // 如果返回的数据少于limit，说明已经是最后一批
+    if (batch.length < limit) break;
+
+    skip += limit;
+  }
+
+  return allBookmarks;
 };
 
 const handleFullSync = async () => {
@@ -327,19 +395,14 @@ const handleFullSync = async () => {
       throw new Error('Server URL not configured. Please configure server URL first.');
     }
 
-    // 获取所有书签 - 使用 search 方法获取全部
-    console.log('[Sync] Calling bookmarkStorage.search()...');
-    const localBookmarks = await bookmarkStorage.search([], 0, 100000, 'desc');
-    console.log('[Sync] Search result:', localBookmarks);
-    console.log('[Sync] Search result type:', typeof localBookmarks);
-    console.log('[Sync] Is array?', Array.isArray(localBookmarks));
+    // 分批获取所有书签，避免一次性加载过多数据导致崩溃
+    console.log('[Sync] Fetching local bookmarks in batches...');
+    const localBookmarks = await getAllBookmarks((count) => {
+      console.log(`[Sync] Loaded ${count} bookmarks...`);
+    });
 
-    if (!localBookmarks) {
-      throw new Error('Failed to fetch local bookmarks - search returned null/undefined');
-    }
-
-    if (!Array.isArray(localBookmarks)) {
-      throw new Error(`Expected array but got ${typeof localBookmarks}`);
+    if (!localBookmarks || !Array.isArray(localBookmarks)) {
+      throw new Error('Failed to fetch local bookmarks - invalid data');
     }
 
     console.log(`[Sync] Starting sync with ${localBookmarks.length} local bookmarks`);
@@ -358,7 +421,7 @@ const handleFullSync = async () => {
 
     // 将服务器返回的书签保存到本地
     // 1. 创建本地书签ID映射
-    const localBookmarksMap = new Map(localBookmarks.map(b => [b.id, b]));
+    const localBookmarksMap = new Map(localBookmarks.map((b) => [b.id, b]));
 
     // 2. 处理服务器书签
     let newCount = 0;
@@ -408,7 +471,7 @@ const handleFullSync = async () => {
     try {
       await chrome.runtime.sendMessage({
         type: 'BOOKMARKS_SYNCED',
-        data: { newCount, updatedCount, total: result.bookmarks.length }
+        data: { newCount, updatedCount, total: result.bookmarks.length },
       });
     } catch (err) {
       console.log('[Sync] No listeners for sync message (this is ok)');
@@ -439,30 +502,18 @@ const handleFullSync = async () => {
   }
 };
 
-const loadAnalytics = async () => {
-  try {
-    analytics.value = await backendClient.getAnalyticsOverview();
-  } catch (e) {
-    console.error('Failed to load analytics:', e);
-  }
-};
-
-const loadUserInfo = async () => {
-  try {
-    userInfo.value = await backendClient.getMe();
-    loadAnalytics();
-  } catch (e) {
-    console.error('Failed to load user info:', e);
-  }
-};
-
 onMounted(async () => {
   await backendClient.init();
   if (backendClient.serverUrl) {
     serverUrl.value = backendClient.serverUrl;
   }
+
+  // 强制刷新 UI 以反映初始化后的登录状态
+  forceRefresh();
+
+  // 如果已登录，加载分析数据
   if (backendClient.isAuthenticated()) {
-    loadUserInfo();
+    await loadAnalytics();
   }
 
   const stored = await chrome.storage.local.get('favbox_last_sync');

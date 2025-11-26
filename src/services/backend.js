@@ -14,6 +14,7 @@ class BackendClient {
   constructor() {
     this.serverUrl = null;
     this.token = null;
+    this.userInfo = null;
     this.ws = null;
     this.wsReconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -28,9 +29,29 @@ class BackendClient {
     const stored = await chrome.storage.local.get([
       STORAGE_KEYS.SERVER_URL,
       STORAGE_KEYS.AUTH_TOKEN,
+      STORAGE_KEYS.USER_INFO,
     ]);
     this.serverUrl = stored[STORAGE_KEYS.SERVER_URL] || null;
     this.token = stored[STORAGE_KEYS.AUTH_TOKEN] || null;
+    this.userInfo = stored[STORAGE_KEYS.USER_INFO] || null;
+
+    // 如果有 token 但没有用户信息，或者需要验证 token 有效性，尝试获取用户信息
+    if (this.token && !this.userInfo) {
+      try {
+        this.userInfo = await this.getMe();
+        await chrome.storage.local.set({ [STORAGE_KEYS.USER_INFO]: this.userInfo });
+      } catch (e) {
+        // Token 可能已过期，清除认证状态
+        console.error('[BackendClient] Failed to restore user info, clearing auth:', e);
+        await this.logout();
+      }
+    }
+
+    // 如果已认证且有用户信息，连接 WebSocket
+    if (this.token && this.userInfo) {
+      this.connectWebSocket();
+    }
+
     return this;
   }
 
@@ -42,7 +63,11 @@ class BackendClient {
   }
 
   isAuthenticated() {
-    return !!this.token;
+    return !!this.token && !!this.userInfo;
+  }
+
+  getUserInfo() {
+    return this.userInfo;
   }
 
   /**
@@ -69,7 +94,7 @@ class BackendClient {
     };
 
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers.Authorization = `Bearer ${this.token}`;
     }
 
     const response = await fetch(url, {
@@ -127,8 +152,8 @@ class BackendClient {
     await chrome.storage.local.set({ [STORAGE_KEYS.AUTH_TOKEN]: this.token });
 
     // Get user info
-    const user = await this.getMe();
-    await chrome.storage.local.set({ [STORAGE_KEYS.USER_INFO]: user });
+    this.userInfo = await this.getMe();
+    await chrome.storage.local.set({ [STORAGE_KEYS.USER_INFO]: this.userInfo });
 
     // Connect WebSocket
     this.connectWebSocket();
@@ -141,6 +166,7 @@ class BackendClient {
    */
   async logout() {
     this.token = null;
+    this.userInfo = null;
     this.disconnectWebSocket();
     await chrome.storage.local.remove([
       STORAGE_KEYS.AUTH_TOKEN,
@@ -165,7 +191,7 @@ class BackendClient {
     console.log('[BackendClient] fullSync called with', bookmarks.length, 'bookmarks');
     console.log('[BackendClient] Sample bookmark before transform:', bookmarks[0]);
 
-    const transformedBookmarks = bookmarks.map(b => this._transformBookmarkForServer(b));
+    const transformedBookmarks = bookmarks.map((b) => this._transformBookmarkForServer(b));
     console.log('[BackendClient] Sample bookmark after transform:', transformedBookmarks[0]);
 
     const requestBody = {
@@ -197,7 +223,7 @@ class BackendClient {
     const data = await this.request('/api/bookmarks/sync/incremental', {
       method: 'POST',
       body: {
-        changes: changes.map(c => this._transformBookmarkForServer(c)),
+        changes: changes.map((c) => this._transformBookmarkForServer(c)),
         last_sync_at: lastSync,
       },
     });
@@ -221,6 +247,15 @@ class BackendClient {
    */
   async getChanges(since) {
     return this.request(`/api/bookmarks/changes?since=${encodeURIComponent(since)}`);
+  }
+
+  /**
+   * Delete a single bookmark
+   */
+  async deleteBookmark(browserId) {
+    return this.request(`/api/bookmarks/${browserId}`, {
+      method: 'DELETE',
+    });
   }
 
   /**
@@ -404,7 +439,7 @@ class BackendClient {
       return;
     }
 
-    const wsUrl = this.serverUrl.replace(/^http/, 'ws') + `/api/ws?token=${this.token}`;
+    const wsUrl = `${this.serverUrl.replace(/^http/, 'ws')}/api/ws?token=${this.token}`;
 
     this.ws = new WebSocket(wsUrl);
 
@@ -480,20 +515,45 @@ class BackendClient {
    */
   _scheduleReconnect() {
     if (this.wsReconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('[FavBox] Max reconnect attempts reached');
+      console.log('[FavBox] Max reconnect attempts reached, will retry in 5 minutes');
+      // 长时间等待后重置计数器，避免永久放弃
+      setTimeout(() => {
+        console.log('[FavBox] Resetting reconnect attempts after long delay');
+        this.wsReconnectAttempts = 0;
+        if (this.token) {
+          this.connectWebSocket();
+        }
+      }, 5 * 60 * 1000); // 5分钟后重试
       return;
     }
 
-    const delay = this.reconnectDelay * Math.pow(2, this.wsReconnectAttempts);
+    // 指数退避，但限制最大延迟为30秒
+    const delay = Math.min(
+      this.reconnectDelay * 2 ** this.wsReconnectAttempts,
+      30000, // 最大延迟30秒
+    );
     this.wsReconnectAttempts++;
 
-    console.log(`[FavBox] Reconnecting in ${delay}ms (attempt ${this.wsReconnectAttempts})`);
+    console.log(`[FavBox] Reconnecting in ${delay}ms (attempt ${this.wsReconnectAttempts}/${this.maxReconnectAttempts})`);
 
     setTimeout(() => {
       if (this.token) {
         this.connectWebSocket();
       }
     }, delay);
+  }
+
+  /**
+   * Manually reconnect WebSocket
+   * Resets reconnection attempts and tries to connect immediately
+   */
+  reconnect() {
+    console.log('[FavBox] Manual reconnect requested');
+    this.wsReconnectAttempts = 0;
+    this.disconnectWebSocket();
+    if (this.token) {
+      this.connectWebSocket();
+    }
   }
 
   // ==================== Event System ====================
