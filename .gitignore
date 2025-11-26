@@ -38,3 +38,11 @@ backend/__pycache__/
 backend/**/__pycache__/
 backend/*.db
 backend/*.pyc
+
+# Test files
+test-*.js
+test-*.ts
+
+# Package manager lock files
+bun.lock
+bun.lockb
