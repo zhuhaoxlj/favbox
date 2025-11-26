@@ -66,6 +66,7 @@
               :key="notification.id"
               role="alert"
               class="mx-auto mt-4 flex w-full max-w-xs items-center gap-3 overflow-hidden rounded-lg border border-neutral-400/30 bg-green-700/60 p-3 text-sm shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-green-800/80 dark:text-white"
+              :class="{ 'pointer-events-auto': notification.action }"
             >
               <div class="flex items-center justify-center text-white">
                 <svg
@@ -82,6 +83,13 @@
               <div class="flex-1 text-xs text-white">
                 {{ notification.text }}
               </div>
+              <button
+                v-if="notification.action"
+                class="rounded bg-white/20 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-white/30"
+                @click="notification.action()"
+              >
+                {{ notification.actionLabel || 'Undo' }}
+              </button>
             </div>
           </Notification>
         </div>
