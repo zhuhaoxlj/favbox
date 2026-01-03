@@ -1,5 +1,10 @@
 from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
-from app.schemas.bookmark import BookmarkCreate, BookmarkUpdate, BookmarkResponse, BookmarkSync
+from app.schemas.bookmark import (
+    BookmarkCreate,
+    BookmarkUpdate,
+    BookmarkResponse,
+    BookmarkSync,
+)
 from app.schemas.collection import (
     CollectionCreate,
     CollectionUpdate,
@@ -7,6 +12,11 @@ from app.schemas.collection import (
     CollectionShareCreate,
 )
 from app.schemas.analytics import AnalyticsOverview, DomainStat, TagStat, TimelineStat
+from app.schemas.backup import (
+    CreateBackupRequest,
+    BookmarkBackupResponse,
+    RestoreBackupRequest,
+)
 
 __all__ = [
     "UserCreate",
@@ -25,4 +35,7 @@ __all__ = [
     "DomainStat",
     "TagStat",
     "TimelineStat",
+    "CreateBackupRequest",
+    "BookmarkBackupResponse",
+    "RestoreBackupRequest",
 ]

@@ -1,6 +1,7 @@
 """
 Bookmark Schemas
 """
+
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -22,6 +23,11 @@ class BookmarkBase(BaseModel):
     pinned: int = 0
     http_status: Optional[int] = None
     date_added: Optional[int] = None
+    ai_tags: Optional[list[str]] = Field(default_factory=list)
+    ai_tags_confidence: Optional[dict[str, float]] = Field(default_factory=dict)
+    ai_category_id: Optional[int] = None
+    ai_embedding: Optional[list[float]] = None
+    last_ai_analysis_at: Optional[datetime] = None
 
 
 class BookmarkCreate(BookmarkBase):
@@ -42,6 +48,11 @@ class BookmarkUpdate(BaseModel):
     folder_id: Optional[str] = None
     pinned: Optional[int] = None
     http_status: Optional[int] = None
+    ai_tags: Optional[list[str]] = None
+    ai_tags_confidence: Optional[dict[str, float]] = None
+    ai_category_id: Optional[int] = None
+    ai_embedding: Optional[list[float]] = None
+    last_ai_analysis_at: Optional[datetime] = None
 
 
 class BookmarkResponse(BookmarkBase):
@@ -57,6 +68,7 @@ class BookmarkResponse(BookmarkBase):
 
 class BookmarkSync(BaseModel):
     """For sync operations"""
+
     browser_id: str
     url: str
     title: str
@@ -74,22 +86,30 @@ class BookmarkSync(BaseModel):
     date_added: Optional[int] = None
     updated_at: Optional[datetime] = None  # Client's last update time
     deleted: bool = False  # For incremental sync - mark as deleted
+    ai_tags: Optional[list[str]] = Field(default_factory=list)
+    ai_tags_confidence: Optional[dict[str, float]] = Field(default_factory=dict)
+    ai_category_id: Optional[int] = None
+    ai_embedding: Optional[list[float]] = None
+    last_ai_analysis_at: Optional[datetime] = None
 
 
 class SyncRequest(BaseModel):
     """Full sync request from client"""
+
     bookmarks: list[BookmarkSync]
     client_timestamp: datetime
 
 
 class IncrementalSyncRequest(BaseModel):
     """Incremental sync - only changes since last sync"""
+
     changes: list[BookmarkSync]
     last_sync_at: datetime
 
 
 class SyncResponse(BaseModel):
     """Sync response to client"""
+
     bookmarks: list[BookmarkResponse]
     server_timestamp: datetime
     conflicts: list[dict] = Field(default_factory=list)

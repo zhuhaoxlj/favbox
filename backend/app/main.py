@@ -1,6 +1,7 @@
 """
 FavBox Backend - FastAPI Application
 """
+
 from contextlib import asynccontextmanager
 import traceback
 
@@ -16,6 +17,11 @@ from app.api import (
     analytics_router,
     collections_router,
     websocket_router,
+    backups_router,
+    ai_tagging_router,
+    search_router,
+    categories_router,
+    semantic_search_router,
 )
 
 settings = get_settings()
@@ -40,18 +46,19 @@ app = FastAPI(
 # Global exception handler for debugging
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"[ERROR] Unhandled exception in {request.url.path}")
     print(f"[ERROR] Method: {request.method}")
     print(f"[ERROR] Exception type: {type(exc).__name__}")
     print(f"[ERROR] Exception message: {str(exc)}")
     print(f"[ERROR] Traceback:")
     traceback.print_exc()
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
     return JSONResponse(
         status_code=500,
         content={"detail": f"{type(exc).__name__}: {str(exc)}"},
     )
+
 
 # CORS Configuration
 app.add_middleware(
@@ -68,6 +75,11 @@ app.include_router(bookmarks_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(collections_router, prefix="/api")
 app.include_router(websocket_router, prefix="/api")
+app.include_router(backups_router, prefix="/api")
+app.include_router(ai_tagging_router, prefix="/api")
+app.include_router(search_router, prefix="/api")
+app.include_router(categories_router, prefix="/api")
+app.include_router(semantic_search_router, prefix="/api")
 
 
 @app.get("/")
