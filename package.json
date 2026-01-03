@@ -12,6 +12,7 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix"
   },
   "dependencies": {
+    "@automerge/automerge-wasm": "^1.0.0-preview.2",
     "@fontsource/sn-pro": "^5.2.5",
     "@formkit/auto-animate": "^0.8.2",
     "@headlessui/vue": "^1.7.21",
