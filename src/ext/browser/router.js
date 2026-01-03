@@ -43,6 +43,24 @@ const routes = [
     meta: { page: 5 },
   },
   {
+    path: '/ai-batch-tag',
+    name: 'AITagBatchView',
+    component: () => import('./views/AITagBatchView.vue'),
+    meta: { page: 6 },
+  },
+  {
+    path: '/categories',
+    name: 'CategoriesView',
+    component: () => import('./views/CategoriesView.vue'),
+    meta: { page: 7 },
+  },
+  {
+    path: '/semantic-search',
+    name: 'SemanticSearchView',
+    component: () => import('./views/SemanticSearchView.vue'),
+    meta: { page: 8 },
+  },
+  {
     path: '/',
     redirect: '/bookmarks',
   },

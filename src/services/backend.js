@@ -619,6 +619,189 @@ class BackendClient {
       }
     }
   }
+
+  // ==================== Backup Management ====================
+
+  /**
+   * Create a backup of all bookmarks
+   */
+  async createBackup({ name, description }) {
+    return this.request('/api/backups', {
+      method: 'POST',
+      body: { name, description },
+    });
+  }
+
+  /**
+   * Get all backups
+   */
+  async getBackups() {
+    return this.request('/api/backups');
+  }
+
+  /**
+   * Get a specific backup
+   */
+  async getBackup(backupId) {
+    return this.request(`/api/backups/${backupId}`);
+  }
+
+  /**
+   * Delete a backup
+   */
+  async deleteBackup(backupId) {
+    return this.request(`/api/backups/${backupId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Restore from a backup
+   */
+  async restoreBackup({ backup_id, merge_mode }) {
+    return this.request('/api/backups/restore', {
+      method: 'POST',
+      body: { backup_id, merge_mode },
+    });
+  }
+
+  // ==================== AI Tagging ====================
+
+  /**
+   * Get AI tagging statistics
+   */
+  async getAIStats() {
+    return this.request('/api/ai/stats');
+  }
+
+  /**
+   * Batch tag bookmarks with AI
+   */
+  async batchTagBookmarks({ days, max_tags, overwrite, create_backup }) {
+    return this.request('/api/ai/batch-tag', {
+      method: 'POST',
+      body: { days, max_tags, overwrite, create_backup },
+    });
+  }
+
+  /**
+   * Suggest tags for a single bookmark
+   */
+  async suggestTags({ title, description, url, keywords, max_tags }) {
+    return this.request('/api/ai/suggest-tags', {
+      method: 'POST',
+      body: { title, description, url, keywords, max_tags },
+    });
+  }
+
+  /**
+   * Apply tags to a specific bookmark
+   */
+  async applyTags({ bookmark_id, tags, confidence }) {
+    return this.request(`/api/ai/apply-tags/${bookmark_id}`, {
+      method: 'POST',
+      body: { tags, confidence },
+    });
+  }
+
+  // ==================== Semantic Search ====================
+
+  /**
+   * Perform semantic search
+   */
+  async semanticSearch({ query, limit, min_similarity }) {
+    return this.request('/api/search/semantic', {
+      method: 'POST',
+      body: { query, limit, min_similarity },
+    });
+  }
+
+  /**
+   * Generate embeddings for bookmarks
+   */
+  async generateEmbeddings({ days, overwrite }) {
+    return this.request('/api/search/generate-embeddings', {
+      method: 'POST',
+      body: { days, overwrite },
+    });
+  }
+
+  /**
+   * Get embedding statistics
+   */
+  async getEmbeddingStats() {
+    return this.request('/api/search/embedding-stats');
+  }
+
+  // ==================== Category Management ====================
+
+  /**
+   * Get all categories
+   */
+  async getCategories() {
+    return this.request('/api/categories');
+  }
+
+  /**
+   * Get category statistics
+   */
+  async getCategoryStats() {
+    return this.request('/api/categories/stats');
+  }
+
+  /**
+   * Create a new category
+   */
+  async createCategory({ name, description, color, icon, keywords, parent_id }) {
+    return this.request('/api/categories', {
+      method: 'POST',
+      body: { name, description, color, icon, keywords, parent_id },
+    });
+  }
+
+  /**
+   * Update a category
+   */
+  async updateCategory(categoryId, { name, description, color, icon, keywords }) {
+    return this.request(`/api/categories/${categoryId}`, {
+      method: 'PUT',
+      body: { name, description, color, icon, keywords },
+    });
+  }
+
+  /**
+   * Delete a category
+   */
+  async deleteCategory(categoryId) {
+    return this.request(`/api/categories/${categoryId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Initialize default categories
+   */
+  async initializeCategories() {
+    return this.request('/api/categories/initialize', {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Reset all categories
+   */
+  async resetCategories() {
+    return this.request('/api/categories/reset', {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Get bookmarks for a specific category
+   */
+  async getCategoryBookmarks(categoryId, page = 1, pageSize = 20) {
+    return this.request(`/api/categories/${categoryId}/bookmarks?page=${page}&page_size=${pageSize}`);
+  }
 }
 
 // Export singleton instance

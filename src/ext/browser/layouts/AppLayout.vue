@@ -24,6 +24,9 @@ import ClarityPinLine from '~icons/clarity/pin-line';
 import ClarityCopyLine from '~icons/clarity/copy-line';
 import PhLinkBreak from '~icons/ph/link-break';
 import PhCloudArrowUpLight from '~icons/ph/cloud-arrow-up-light';
+import PhBrainLight from '~icons/ph/brain-light';
+import PhFoldersLight from '~icons/ph/folders-light';
+import PhMagnifyingGlassLight from '~icons/ph/magnifying-glass-light';
 
 const menu = [
   { name: 'BookmarksView', label: 'Bookmarks', icon: ClarityBookmarkLine, tooltip: 'View all bookmarks' },
@@ -31,6 +34,9 @@ const menu = [
   { name: 'HealthCheckView', label: 'Health Check', icon: PhLinkBreak, tooltip: 'Check broken links' },
   { name: 'DuplicatesView', label: 'Duplicates', icon: ClarityCopyLine, tooltip: 'Find duplicate bookmarks' },
   { name: 'SyncSettingsView', label: 'Cloud Sync', icon: PhCloudArrowUpLight, tooltip: 'Cloud sync settings' },
+  { name: 'AITagBatchView', label: 'AI Tags', icon: PhBrainLight, tooltip: 'AI batch tagging' },
+  { name: 'CategoriesView', label: 'Categories', icon: PhFoldersLight, tooltip: 'Manage categories' },
+  { name: 'SemanticSearchView', label: 'Semantic Search', icon: PhMagnifyingGlassLight, tooltip: 'AI-powered semantic search' },
 ];
 
 onErrorCaptured((e) => {
