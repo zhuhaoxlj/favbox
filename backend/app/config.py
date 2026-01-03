@@ -1,6 +1,7 @@
 """
 FavBox Backend Configuration
 """
+
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -22,6 +23,13 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "chrome-extension://,moz-extension://,http://localhost:3000"
 
+    # AI Services
+    gemini_api_key: str = ""
+
+    # Proxy (for accessing Gemini API from restricted networks)
+    http_proxy: str = ""
+    https_proxy: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]
@@ -29,6 +37,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # 忽略.env中的额外字段（如vite相关配置）
 
 
 @lru_cache

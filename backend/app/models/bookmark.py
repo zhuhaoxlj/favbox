@@ -1,10 +1,21 @@
 """
 Bookmark Model
 """
+
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, JSON, Index
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+# 仅在使用PostgreSQL时导入Vector
+try:
+    from pgvector.sqlalchemy import Vector
+    HAS_PGVECTOR = True
+except ImportError:
+    # SQLite使用JSON存储向量
+    Vector = None
+    HAS_PGVECTOR = False
 
 from app.database import Base
 
@@ -54,15 +65,55 @@ class Bookmark(Base):
     http_status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    date_added: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Original browser timestamp
+    date_added: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )  # Original browser timestamp
+
+    # AI related fields
+    ai_tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
+    ai_tags_confidence: Mapped[Optional[dict]] = mapped_column(
+        JSON, nullable=True, default=dict
+    )
+    ai_category_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("categories.id"),
+        nullable=True,
+        index=True
+    )
+
+    # Vector embedding for semantic search (768-dim from Gemini)
+    # PostgreSQL使用Vector类型，SQLite使用JSON类型
+    if HAS_PGVECTOR:
+        ai_embedding: Mapped[Optional[Vector]] = mapped_column(
+            Vector(768), nullable=True
+        )
+    else:
+        ai_embedding: Mapped[Optional[list]] = mapped_column(
+            JSON, nullable=True, default=list
+        )
+
+    # Full-text search field (PostgreSQL tsvector)
+    # Note: 使用 Text 类型存储，在查询时动态转换为 tsvector
+    textsearch: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )
+
+    last_ai_analysis_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="bookmarks")
+    category: Mapped[Optional["Category"]] = relationship(
+        "Category",
+        back_populates="bookmarks"
+    )
     collections: Mapped[list["CollectionBookmark"]] = relationship(
         "CollectionBookmark", back_populates="bookmark", cascade="all, delete-orphan"
     )
