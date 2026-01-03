@@ -1,0 +1,34 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+        "zai-mcp-server": {
+            "type": "local",
+            "command": ["npx","-y","@z_ai/mcp-server"],
+            "environment": {
+                "Z_AI_API_KEY": "86dca59373df48a19fc07bc5174ee2db.OHcRMwKx28iylBAP",
+                "Z_AI_MODE": "ZHIPU"
+            }
+        },
+        "web-search-prime": {
+            "type": "remote",
+            "url": "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
+            "headers": {
+                "Authorization": "Bearer 86dca59373df48a19fc07bc5174ee2db.OHcRMwKx28iylBAP"
+            }
+        },
+        "web-reader": {
+            "type": "remote",
+            "url": "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+            "headers": {
+                "Authorization": "Bearer 86dca59373df48a19fc07bc5174ee2db.OHcRMwKx28iylBAP"
+            }
+        },
+        "zread": {
+            "type": "remote",
+            "url": "https://open.bigmodel.cn/api/mcp/zread/mcp",
+            "headers": {
+                "Authorization": "Bearer 86dca59373df48a19fc07bc5174ee2db.OHcRMwKx28iylBAP"
+            }
+        }
+    }
+}
